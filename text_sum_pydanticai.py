@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.agent import Agent
-from typing import List, Optional
+from typing import List
 import nltk
 import re
 import json
@@ -12,18 +12,18 @@ import json
 nltk.download("punkt", quiet=True)
 from nltk.tokenize import sent_tokenize, word_tokenize
 
-# ---- 1. MODEL SETUP ----
+# 1. MODEL SETUP 
 provider = OpenAIProvider(base_url="http://localhost:11434/v1")
-model = OpenAIModel('llama3.2:1b', provider=provider)  # Using llama3 for better JSON compliance
+model = OpenAIModel('llama3.2:1b', provider=provider)  
 agent = Agent(model=model)
 
-# ---- 2. Pydantic Schema ----
+#  2. Pydantic Schema 
 class SummaryOutput(BaseModel):
     heading: str
     main_point: str
     action_items: List[str]
 
-# ---- 3. Chunking Logic ----
+#  3. Chunking Logic 
 def chunk_text(text, max_words=200):
     sentences = sent_tokenize(text)
     chunks = []
@@ -43,7 +43,7 @@ def chunk_text(text, max_words=200):
         chunks.append(" ".join(current_chunk))
     return chunks
 
-# ---- 4. Prompt Template ----
+#  4. Prompt Template 
 def build_prompt(chunk_text):
     print(f"printing type of chunk_text: {type(chunk_text)}")
     return f"""You are an expert at summarizing technical content in strict JSON format.
@@ -75,7 +75,7 @@ EXAMPLE:
 }}
 ```"""
 
-# ---- 5. Summarize Each Chunk ----
+#  5. Summarize Each Chunk 
 async def run_summary(chunk_text):
     print(f"printing type of chunk_text: {type(chunk_text)}")
     prompt = build_prompt(chunk_text)
@@ -84,10 +84,9 @@ async def run_summary(chunk_text):
         try:
             result = await agent.run(prompt)
             if result and hasattr(result, 'output'):
-                # Try to extract JSON from the output
+                
                 response_text = result.output
                 
-                # Clean the response to extract just the JSON
                 json_start = response_text.find('{')
                 json_end = response_text.rfind('}') + 1
                 if json_start == -1 or json_end == 0:
@@ -103,14 +102,12 @@ async def run_summary(chunk_text):
             elif attempt < max_retries - 1:
                 continue
         except Exception as e:
-            print(f"⚠️ Attempt {attempt + 1} failed: {str(e)}")
+            print(f" Attempt {attempt + 1} failed: {str(e)}")
             if attempt < max_retries - 1:
                 continue
     return None
 
-# ---- 6. Summarize All Chunks ----
-
-
+#  6. Summarize All Chunks 
 async def summarize_chunks(chunks):
     all_summaries = []
     for i, chunk in enumerate(chunks):
@@ -118,21 +115,21 @@ async def summarize_chunks(chunks):
         try:
             summary = await run_summary(chunk)
             if summary:
-                print(f"✅ Summary: {summary.heading}")
+                print(f"Summary: {summary.heading}")
                 print(f"Main Point: {summary.main_point}")
                 print("Action Items:")
                 for j, item in enumerate(summary.action_items, 1):
                     print(f"  {j}. {item}")
                 all_summaries.append(summary)
             else:
-                print("❌ No valid summary - possible format issues")
+                print(" No valid summary - possible format issues")
         except Exception as e:
-            print(f"❌ Error: {str(e)}")
+            print(f" Error: {str(e)}")
     return all_summaries
-# ---- 7. Final Merge ----
+#  7. Final Merge 
 def format_final_output(summaries):
     if not summaries:
-        return "⚠️ No valid summaries were generated."
+        return "No valid summaries were generated."
 
     # Build detailed chunk summaries
     detailed_output = "=== DETAILED CHUNK SUMMARIES ===\n\n"
@@ -159,7 +156,6 @@ def format_final_output(summaries):
                 action_mapping[action_counter] = item
                 action_counter += 1
 
-    # Add the sorted actions to the output
     for num, action in sorted(action_mapping.items()):
         consolidated_output += f"{num}. {action}\n"
 
@@ -167,23 +163,23 @@ def format_final_output(summaries):
 
 # In your summarize_chunks function, modify the print statement:
 
-# ---- 8. Main Runner ----
+#  8. Main Runner 
 async def main():
     INPUT_FILE = "sample_input.txt"
 
     try:
         with open(INPUT_FILE, "r", encoding="utf-8") as f:
             full_text = f.read()
-            print(f"📄 Loaded input file with {len(word_tokenize(full_text))} words")
+            print(f"Loaded input file with {len(word_tokenize(full_text))} words")
     except FileNotFoundError:
-        print(f"❌ File '{INPUT_FILE}' not found")
+        print(f"File '{INPUT_FILE}' not found")
         return
     except Exception as e:
-        print(f"❌ Error reading file: {str(e)}")
+        print(f"Error reading file: {str(e)}")
         return
 
     chunks = chunk_text(full_text)
-    print(f"\n📊 Split into {len(chunks)} chunks")
+    print(f"\nSplit into {len(chunks)} chunks")
     
     summaries = await summarize_chunks(chunks)
 
